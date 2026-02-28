@@ -1,0 +1,15 @@
+{
+  "Decision Tree": {
+    "max_depth": 4,
+    "min_samples_leaf": 100
+  },
+  "Random Forest": {
+    "max_depth": 5,
+    "n_estimators": 100
+  },
+  "LightGBM": {
+    "learning_rate": 0.05,
+    "max_depth": 3,
+    "n_estimators": 100
+  }
+}

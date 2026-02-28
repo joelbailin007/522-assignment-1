@@ -1,0 +1,66 @@
+{
+  "SEX": {
+    "min": 0.0,
+    "max": 1.0
+  },
+  "HOSPITALIZED": {
+    "min": 0.0,
+    "max": 1.0
+  },
+  "PNEUMONIA": {
+    "min": 0.0,
+    "max": 1.0
+  },
+  "AGE": {
+    "min": 0.0,
+    "max": 103.0
+  },
+  "PREGNANT": {
+    "min": 0.0,
+    "max": 1.0
+  },
+  "DIABETES": {
+    "min": 0.0,
+    "max": 1.0
+  },
+  "COPD": {
+    "min": 0.0,
+    "max": 1.0
+  },
+  "ASTHMA": {
+    "min": 0.0,
+    "max": 1.0
+  },
+  "IMMUNOSUPPRESSION": {
+    "min": 0.0,
+    "max": 1.0
+  },
+  "HYPERTENSION": {
+    "min": 0.0,
+    "max": 1.0
+  },
+  "OTHER_DISEASE": {
+    "min": 0.0,
+    "max": 1.0
+  },
+  "CARDIOVASCULAR": {
+    "min": 0.0,
+    "max": 1.0
+  },
+  "OBESITY": {
+    "min": 0.0,
+    "max": 1.0
+  },
+  "RENAL_CHRONIC": {
+    "min": 0.0,
+    "max": 1.0
+  },
+  "TOBACCO": {
+    "min": 0.0,
+    "max": 1.0
+  },
+  "COVID_POSITIVE": {
+    "min": 0.0,
+    "max": 1.0
+  }
+}
