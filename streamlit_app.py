@@ -187,14 +187,24 @@ with tab4:
     try:
         explainer = shap.TreeExplainer(model)
         shap_values = explainer.shap_values(X_input)
-        if isinstance(shap_values, list):
-            vals = shap_values[1]
+        
+        expected_val = explainer.expected_value
+        if isinstance(expected_val, (list, np.ndarray)):
+            base_val = expected_val[1] if len(expected_val) > 1 else expected_val[0]
         else:
-            vals = shap_values
+            base_val = expected_val
+            
+        if isinstance(shap_values, list):
+            vals = shap_values[1] if len(shap_values) > 1 else shap_values[0]
+        else:
+            if len(np.shape(shap_values)) == 3:
+                vals = shap_values[:, :, 1] if shap_values.shape[2] > 1 else shap_values[:, :, 0]
+            else:
+                vals = shap_values
 
         exp = shap.Explanation(
             values=np.array(vals[0]),
-            base_values=explainer.expected_value[1] if isinstance(explainer.expected_value, (list, np.ndarray)) else explainer.expected_value,
+            base_values=base_val,
             data=X_input.iloc[0].values,
             feature_names=feature_names,
         )
