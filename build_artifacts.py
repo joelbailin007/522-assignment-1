@@ -5,11 +5,13 @@ import json
 from pathlib import Path
 
 import joblib
+import lightgbm as lgb
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 import seaborn as sns
 import shap
-from sklearn.ensemble import HistGradientBoostingClassifier, RandomForestClassifier
+from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score, roc_auc_score
 from sklearn.model_selection import GridSearchCV, StratifiedKFold, train_test_split
 from sklearn.tree import DecisionTreeClassifier
@@ -23,52 +25,6 @@ def save_json(path: Path, obj):
         json.dump(obj, f, indent=2)
 
 
-def _build_boosting_grid(cv):
-    """Try LightGBM first; if unavailable (e.g., missing libomp on macOS), fallback to sklearn HGB."""
-    try:
-        import lightgbm as lgb
-
-        grid = GridSearchCV(
-            lgb.LGBMClassifier(objective="binary", random_state=RANDOM_STATE),
-            {"n_estimators": [50, 100, 200], "max_depth": [3, 4, 5, 6], "learning_rate": [0.01, 0.05, 0.1]},
-            scoring="f1",
-            cv=cv,
-            n_jobs=-1,
-        )
-        return "LightGBM", grid, None
-    except Exception as exc:  # noqa: BLE001
-        grid = GridSearchCV(
-            HistGradientBoostingClassifier(random_state=RANDOM_STATE),
-            {
-                "learning_rate": [0.01, 0.05, 0.1],
-                "max_depth": [3, 5, 8],
-                "max_iter": [100, 200, 300],
-            },
-            scoring="f1",
-            cv=cv,
-            n_jobs=-1,
-        )
-        return "Gradient Boosting (fallback)", grid, str(exc)
-
-
-def _plot_shap(model, X_test, summary_path: Path, bar_path: Path):
-    explainer = shap.TreeExplainer(model)
-    shap_values = explainer.shap_values(X_test)
-    vals = shap_values[1] if isinstance(shap_values, list) else shap_values
-
-    plt.figure(figsize=(10, 6))
-    shap.summary_plot(vals, X_test, show=False)
-    plt.tight_layout()
-    plt.savefig(summary_path, dpi=150)
-    plt.close()
-
-    plt.figure(figsize=(10, 6))
-    shap.summary_plot(vals, X_test, plot_type="bar", show=False)
-    plt.tight_layout()
-    plt.savefig(bar_path, dpi=150)
-    plt.close()
-
-
 def main(data_path: Path):
     root = Path(__file__).parent
     artifacts = root / "artifacts"
@@ -79,6 +35,7 @@ def main(data_path: Path):
 
     data = pd.read_csv(data_path, usecols=lambda c: c != "Unnamed: 0")
 
+    # basic descriptive plots
     fig = plt.figure(figsize=(6, 4))
     sns.countplot(x="DEATH", data=data)
     plt.title("Target Distribution")
@@ -112,10 +69,7 @@ def main(data_path: Path):
     rows = []
     for c in comorbidities:
         rates = df.groupby(c)["DEATH"].mean()
-        rows += [
-            {"Condition": c, "Status": "No", "MortalityRate": float(rates.loc[0])},
-            {"Condition": c, "Status": "Yes", "MortalityRate": float(rates.loc[1])},
-        ]
+        rows += [{"Condition": c, "Status": "No", "MortalityRate": float(rates.loc[0])}, {"Condition": c, "Status": "Yes", "MortalityRate": float(rates.loc[1])}]
     mort_df = pd.DataFrame(rows)
     fig = plt.figure(figsize=(10, 4))
     sns.barplot(x="Condition", y="MortalityRate", hue="Status", data=mort_df)
@@ -150,16 +104,22 @@ def main(data_path: Path):
         cv=cv,
         n_jobs=-1,
     )
-    boosting_name, boosting_grid, boosting_import_error = _build_boosting_grid(cv)
+    lgb_grid = GridSearchCV(
+        lgb.LGBMClassifier(objective="binary", random_state=RANDOM_STATE),
+        {"n_estimators": [50, 100, 200], "max_depth": [3, 4, 5, 6], "learning_rate": [0.01, 0.05, 0.1]},
+        scoring="f1",
+        cv=cv,
+        n_jobs=-1,
+    )
 
     dt_grid.fit(X_train, y_train)
     rf_grid.fit(X_train, y_train)
-    boosting_grid.fit(X_train, y_train)
+    lgb_grid.fit(X_train, y_train)
 
     models = {
         "Decision Tree": dt_grid.best_estimator_,
         "Random Forest": rf_grid.best_estimator_,
-        boosting_name: boosting_grid.best_estimator_,
+        "LightGBM": lgb_grid.best_estimator_,
     }
 
     metrics = {}
@@ -177,14 +137,28 @@ def main(data_path: Path):
     best_params = {
         "Decision Tree": dt_grid.best_params_,
         "Random Forest": rf_grid.best_params_,
-        boosting_name: boosting_grid.best_params_,
+        "LightGBM": lgb_grid.best_params_,
     }
 
     defaults = {c: float(X_train[c].mean()) for c in X_train.columns}
     ranges = {c: {"min": float(X_train[c].min()), "max": float(X_train[c].max())} for c in X_train.columns}
 
-    shap_model = models.get("LightGBM", models["Random Forest"])
-    _plot_shap(shap_model, X_test, plots / "shap_summary.png", plots / "shap_bar.png")
+    # SHAP plots from LightGBM
+    explainer = shap.TreeExplainer(models["LightGBM"])
+    shap_values = explainer.shap_values(X_test)
+    vals = shap_values[1] if isinstance(shap_values, list) else shap_values
+
+    plt.figure(figsize=(10, 6))
+    shap.summary_plot(vals, X_test, show=False)
+    plt.tight_layout()
+    plt.savefig(plots / "shap_summary.png", dpi=150)
+    plt.close()
+
+    plt.figure(figsize=(10, 6))
+    shap.summary_plot(vals, X_test, plot_type="bar", show=False)
+    plt.tight_layout()
+    plt.savefig(plots / "shap_bar.png", dpi=150)
+    plt.close()
 
     joblib.dump(
         {
@@ -202,16 +176,7 @@ def main(data_path: Path):
     save_json(artifacts / "feature_defaults.json", defaults)
     save_json(artifacts / "feature_ranges.json", ranges)
 
-    run_notes = {
-        "boosting_model_used": boosting_name,
-        "lightgbm_import_error": boosting_import_error,
-    }
-    save_json(artifacts / "run_notes.json", run_notes)
-
     print("Artifacts generated in ./artifacts")
-    if boosting_import_error:
-        print("LightGBM unavailable; used sklearn fallback model.")
-        print(f"Reason: {boosting_import_error}")
 
 
 if __name__ == "__main__":

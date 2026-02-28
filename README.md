@@ -7,30 +7,12 @@
 - `requirements.txt`: Python dependencies.
 - `artifacts/` (generated): saved models, metrics, and plots loaded by the app.
 
-## 1) Create venv and install dependencies
-```bash
-python -m venv .venv
-source .venv/bin/activate   # Windows: .venv\Scripts\activate
-pip install -r requirements.txt
-```
-
-## 2) Build pretrained artifacts
+## 1) Build pretrained artifacts
 ```bash
 python build_artifacts.py --data covid.csv
 ```
 
-### macOS note for LightGBM (`libomp`)
-If you see an error like `Library not loaded: @rpath/libomp.dylib`, install OpenMP:
-
-```bash
-brew install libomp
-```
-
-Then re-run artifact generation.
-
-If LightGBM is still unavailable, `build_artifacts.py` now automatically falls back to a scikit-learn boosting model so the pipeline can still complete.
-
-## 3) Run the Streamlit app
+## 2) Run the Streamlit app
 ```bash
 streamlit run streamlit_app.py
 ```

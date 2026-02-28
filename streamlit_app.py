@@ -35,7 +35,6 @@ def load_assets():
         "best_params": _load_json(ART / "best_params.json"),
         "feature_defaults": _load_json(ART / "feature_defaults.json"),
         "feature_ranges": _load_json(ART / "feature_ranges.json"),
-        "run_notes": _load_json(ART / "run_notes.json"),
     }
 
     model_path = MODELS_DIR / "model_bundle.joblib"
@@ -73,7 +72,7 @@ with tab1:
 
         **Why this matters:** mortality risk stratification supports triage, resource allocation, and earlier intervention for high-risk patients.
 
-        **Approach:** compare Decision Tree, Random Forest, and a boosted model (LightGBM when available, with a robust fallback) using cross-validation, test-set metrics, ROC curves, and SHAP explainability.
+        **Approach:** compare Decision Tree, Random Forest, and LightGBM models using cross-validation, test-set metrics, ROC curves, and SHAP explainability.
 
         This tab is intentionally non-technical and focused on stakeholder-level findings.
         """
@@ -122,10 +121,6 @@ with tab3:
     if params:
         st.subheader("Best hyperparameters")
         st.json(params)
-
-    run_notes = assets.get("run_notes") or {}
-    if run_notes.get("lightgbm_import_error"):
-        st.warning("LightGBM could not be loaded in this environment; fallback boosting model was used for artifact generation.")
 
     if bundle is not None and "X_test" in bundle and "y_test" in bundle:
         st.subheader("ROC curves")
